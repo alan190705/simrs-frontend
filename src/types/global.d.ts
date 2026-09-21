@@ -1,0 +1,3 @@
+interface Window {
+  __APP_CONFIG__?: { apiUrl?: string };
+}

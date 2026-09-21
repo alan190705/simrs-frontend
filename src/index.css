@@ -1,0 +1,14 @@
+@import "tailwindcss";
+
+@theme {
+  /* Font sistem: tidak memuat dari internet, sehingga aman untuk jaringan on-premise. */
+  --font-sans: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --color-brand-50: #ecf5f3;
+  --color-brand-100: #d3e9e5;
+  --color-brand-500: #1c8079;
+  --color-brand-600: #146a64;
+  --color-brand-700: #0f5450;
+  --color-brand-900: #0a2f2d;
+}
+
+body { @apply bg-slate-50 text-slate-900 antialiased; }
