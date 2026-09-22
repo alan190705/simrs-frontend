@@ -3,6 +3,8 @@ import type {
   Branch,
   ChangePasswordInput,
   CreateUserInput,
+  EffectiveAccess,
+  ModuleInput,
   QueryUserParams,
   Role,
   UpdateUserInput,
@@ -38,7 +40,27 @@ export function changeUserPassword(id: string, input: ChangePasswordInput) {
 }
 
 // ============================================================
-// MASTER DATA (untuk dropdown)
+// MODULE ACCESS
+// ============================================================
+
+/**
+ * Ambil akses efektif user (role default + override).
+ * Dipakai untuk render checkbox di tab Module Access.
+ */
+export function fetchEffectiveAccess(id: string) {
+  return get<EffectiveAccess>(`/users/${id}/effective-access`);
+}
+
+/**
+ * Set module access user (override).
+ * Body: { modules: [{ moduleCode: 'farmasi', permissions: ['view', 'create'] }] }
+ */
+export function setUserModules(id: string, modules: ModuleInput[]) {
+  return api.patch(`/users/${id}/modules`, { modules }).then((res) => res.data);
+}
+
+// ============================================================
+// MASTER DATA
 // ============================================================
 
 export function fetchRoles() {

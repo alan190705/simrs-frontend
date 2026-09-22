@@ -1,4 +1,5 @@
 import { ReactNode } from 'react';
+import { cn } from '@/lib/cn';
 
 interface CardProps {
   title?: string;
@@ -6,6 +7,7 @@ interface CardProps {
   action?: ReactNode;
   children: ReactNode;
   className?: string;
+  padding?: 'none' | 'sm' | 'md';
 }
 
 export function Card({
@@ -13,19 +15,23 @@ export function Card({
   description,
   action,
   children,
-  className = '',
+  className,
+  padding = 'md',
 }: CardProps) {
   const hasHeader = title || description || action;
 
   return (
     <div
-      className={`rounded-lg border border-slate-200 bg-white shadow-sm ${className}`}
+      className={cn(
+        'overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm',
+        className,
+      )}
     >
       {hasHeader && (
-        <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-4">
-          <div>
+        <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-4">
+          <div className="min-w-0">
             {title && (
-              <h3 className="text-base font-semibold text-slate-900">
+              <h3 className="text-base font-semibold tracking-tight text-slate-900">
                 {title}
               </h3>
             )}
@@ -36,7 +42,15 @@ export function Card({
           {action && <div className="shrink-0">{action}</div>}
         </div>
       )}
-      <div className="px-5 py-4">{children}</div>
+      <div
+        className={cn(
+          padding === 'md' && 'px-6 py-5',
+          padding === 'sm' && 'px-4 py-3',
+          padding === 'none' && '',
+        )}
+      >
+        {children}
+      </div>
     </div>
   );
 }

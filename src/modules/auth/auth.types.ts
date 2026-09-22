@@ -17,3 +17,23 @@ export interface LoginResponse {
   refresh_token_expires_at: string;
   user: AuthUser;
 }
+
+// ============================================================
+// MODULE ACCESS
+// ============================================================
+
+export interface ModuleAccess {
+  moduleCode: string;
+  moduleName: string;
+  moduleGroup: string | null;
+  moduleIcon: string | null;
+  moduleOrder: number;
+  permissions: string[];
+}
+
+export interface UserAccessSummary {
+  userId: string;
+  roles: string[];
+  isSuperAdmin: boolean;
+  modules: ModuleAccess[];
+}

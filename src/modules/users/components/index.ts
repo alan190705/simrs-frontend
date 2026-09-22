@@ -4,3 +4,4 @@ export { Pagination } from './Pagination';
 export { UserFormModal } from './UserFormModal';
 export { DeleteConfirmModal } from './DeleteConfirmModal';
 export { ResetPasswordModal } from './ResetPasswordModal';
+export { ModuleAccessEditor } from './ModuleAccessEditor';

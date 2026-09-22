@@ -4,10 +4,12 @@ import { cn } from '@/lib/cn';
 import { useBranches, useRoles } from '../users.hooks';
 import type {
   CreateUserInput,
+  ModuleInput,
   UpdateUserInput,
   User,
   UserRoleInput,
 } from '../users.types';
+import { ModuleAccessEditor } from './ModuleAccessEditor';
 
 interface UserFormModalProps {
   open: boolean;
@@ -23,8 +25,8 @@ interface FormState {
   fullName: string;
   password: string;
   isActive: boolean;
-  roleIds: string[];      // multi-role
-  branchId: string;       // single branch
+  roleIds: string[];
+  branchId: string;
 }
 
 const INITIAL: FormState = {
@@ -37,6 +39,8 @@ const INITIAL: FormState = {
   branchId: '',
 };
 
+type TabKey = 'data' | 'access';
+
 export function UserFormModal({
   open,
   onClose,
@@ -45,8 +49,10 @@ export function UserFormModal({
   user,
 }: UserFormModalProps) {
   const isEdit = !!user;
+  const [activeTab, setActiveTab] = useState<TabKey>('data');
   const [form, setForm] = useState<FormState>(INITIAL);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [modules, setModules] = useState<ModuleInput[]>([]);
 
   // Fetch master data
   const rolesQuery = useRoles();
@@ -64,14 +70,17 @@ export function UserFormModal({
         password: '',
         isActive: user.isActive,
         roleIds: user.roles.map((r) => r.roleId),
-        branchId: user.branches.find((b) => b.isDefault)?.branchId
-          ?? user.branches[0]?.branchId
-          ?? '',
+        branchId:
+          user.branches.find((b) => b.isDefault)?.branchId ??
+          user.branches[0]?.branchId ??
+          '',
       });
     } else {
       setForm(INITIAL);
     }
+    setModules([]);
     setErrors({});
+    setActiveTab('data');
   }, [open, user]);
 
   if (!open) return null;
@@ -113,14 +122,19 @@ export function UserFormModal({
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!validate()) return;
 
-    const roles: UserRoleInput[] = form.roleIds.map((roleId) => ({
+    // Validasi tab data dasar — kalau ada error, pindah ke tab data
+    if (!validate()) {
+      setActiveTab('data');
+      return;
+    }
+
+    const rolesInput: UserRoleInput[] = form.roleIds.map((roleId) => ({
       roleId,
-      branchId: null, // global dulu
+      branchId: null,
     }));
 
-    const branches = form.branchId
+    const branchesInput = form.branchId
       ? [{ branchId: form.branchId, isDefault: true }]
       : [];
 
@@ -129,8 +143,9 @@ export function UserFormModal({
         username: form.username.trim(),
         fullName: form.fullName.trim(),
         isActive: form.isActive,
-        roles,
-        branches,
+        roles: rolesInput,
+        branches: branchesInput,
+        modules,
       };
       if (form.email.trim()) payload.email = form.email.trim();
       onSubmit(payload);
@@ -140,13 +155,16 @@ export function UserFormModal({
         fullName: form.fullName.trim(),
         password: form.password,
         isActive: form.isActive,
-        roles,
-        branches,
+        roles: rolesInput,
+        branches: branchesInput,
+        modules,
       };
       if (form.email.trim()) payload.email = form.email.trim();
       onSubmit(payload);
     }
   }
+
+  const dataTabHasError = Object.keys(errors).length > 0;
 
   return (
     <div
@@ -154,137 +172,178 @@ export function UserFormModal({
       onClick={onClose}
     >
       <div
-        className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-xl bg-white shadow-2xl"
+        className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Header */}
         <div className="border-b border-slate-100 px-6 py-4">
           <h2 className="text-lg font-semibold text-slate-900">
             {isEdit ? 'Edit User' : 'Tambah User'}
           </h2>
           <p className="mt-0.5 text-sm text-slate-500">
             {isEdit
-              ? 'Ubah data user. Kosongkan password kalau tidak ingin diubah.'
+              ? 'Ubah data user dan module access.'
               : 'Isi data user baru.'}
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="px-6 py-5">
-          <div className="space-y-4">
-            <Field label="Username" required error={errors.username} hint={!errors.username ? 'Huruf, angka, titik, underscore, strip' : undefined}>
-              <input
-                type="text"
-                value={form.username}
-                onChange={(e) => setForm({ ...form, username: e.target.value })}
-                placeholder="mis. budi.santoso"
-                autoComplete="off"
-                className={inputClass(!!errors.username)}
-              />
-            </Field>
-
-            <Field label="Nama Lengkap" required error={errors.fullName}>
-              <input
-                type="text"
-                value={form.fullName}
-                onChange={(e) => setForm({ ...form, fullName: e.target.value })}
-                placeholder="mis. Budi Santoso"
-                autoComplete="off"
-                className={inputClass(!!errors.fullName)}
-              />
-            </Field>
-
-            <Field label="Email" error={errors.email} hint={!errors.email ? 'Opsional' : undefined}>
-              <input
-                type="email"
-                value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
-                placeholder="mis. budi@simrs.local"
-                autoComplete="off"
-                className={inputClass(!!errors.email)}
-              />
-            </Field>
-
-            {/* ===== ROLE (multi-checkbox) ===== */}
-            <Field label="Role" required error={errors.roleIds} hint={!errors.roleIds ? 'Bisa pilih lebih dari satu' : undefined}>
-              {rolesQuery.isLoading ? (
-                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-500">
-                  Memuat role…
-                </div>
-              ) : roles.length === 0 ? (
-                <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700">
-                  Belum ada role di sistem.
-                </div>
-              ) : (
-                <div className="max-h-48 space-y-1 overflow-y-auto rounded-lg border border-slate-200 p-2">
-                  {roles.map((role) => (
-                    <label
-                      key={role.id}
-                      className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-slate-700 transition hover:bg-slate-50"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={form.roleIds.includes(role.id)}
-                        onChange={() => toggleRole(role.id)}
-                        className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-2 focus:ring-blue-500"
-                      />
-                      <span className="font-medium">{role.name}</span>
-                      <span className="text-xs text-slate-400">({role.code})</span>
-                    </label>
-                  ))}
-                </div>
-              )}
-            </Field>
-
-            {/* ===== BRANCH (single select) ===== */}
-            <Field label="Cabang" error={errors.branchId} hint={!errors.branchId ? 'Opsional' : undefined}>
-              {branchesQuery.isLoading ? (
-                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-500">
-                  Memuat cabang…
-                </div>
-              ) : (
-                <select
-                  value={form.branchId}
-                  onChange={(e) => setForm({ ...form, branchId: e.target.value })}
-                  className={inputClass(!!errors.branchId)}
-                >
-                  <option value="">— Pilih cabang —</option>
-                  {branches.map((b) => (
-                    <option key={b.id} value={b.id}>
-                      {b.name} ({b.code})
-                    </option>
-                  ))}
-                </select>
-              )}
-            </Field>
-
-            <Field
-              label="Password"
-              required={!isEdit}
-              error={errors.password}
-              hint={isEdit ? 'Kosongkan kalau tidak ingin mengubah password' : 'Minimal 8 karakter'}
+        {/* Tab header */}
+        <div className="border-b border-slate-200 bg-slate-50 px-6">
+          <div className="flex gap-1">
+            <TabButton
+              active={activeTab === 'data'}
+              onClick={() => setActiveTab('data')}
+              hasError={dataTabHasError}
             >
-              <input
-                type="password"
-                value={form.password}
-                onChange={(e) => setForm({ ...form, password: e.target.value })}
-                placeholder={isEdit ? '••••••••' : 'Masukkan password'}
-                autoComplete="new-password"
-                className={inputClass(!!errors.password)}
-              />
-            </Field>
+              Data Dasar
+            </TabButton>
+            <TabButton
+              active={activeTab === 'access'}
+              onClick={() => setActiveTab('access')}
+            >
+              Module Access
+            </TabButton>
+          </div>
+        </div>
 
-            <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
-              <input
-                type="checkbox"
-                checked={form.isActive}
-                onChange={(e) => setForm({ ...form, isActive: e.target.checked })}
-                className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-2 focus:ring-blue-500"
+        {/* Form content */}
+        <form onSubmit={handleSubmit} className="flex flex-1 flex-col overflow-hidden">
+          <div className="flex-1 overflow-y-auto px-6 py-5">
+            {/* ============ TAB: DATA DASAR ============ */}
+            {activeTab === 'data' && (
+              <div className="space-y-4">
+                <Field label="Username" required error={errors.username} hint={!errors.username ? 'Huruf, angka, titik, underscore, strip' : undefined}>
+                  <input
+                    type="text"
+                    value={form.username}
+                    onChange={(e) => setForm({ ...form, username: e.target.value })}
+                    placeholder="mis. budi.santoso"
+                    autoComplete="off"
+                    className={inputClass(!!errors.username)}
+                  />
+                </Field>
+
+                <Field label="Nama Lengkap" required error={errors.fullName}>
+                  <input
+                    type="text"
+                    value={form.fullName}
+                    onChange={(e) => setForm({ ...form, fullName: e.target.value })}
+                    placeholder="mis. Budi Santoso"
+                    autoComplete="off"
+                    className={inputClass(!!errors.fullName)}
+                  />
+                </Field>
+
+                <Field label="Email" error={errors.email} hint={!errors.email ? 'Opsional' : undefined}>
+                  <input
+                    type="email"
+                    value={form.email}
+                    onChange={(e) => setForm({ ...form, email: e.target.value })}
+                    placeholder="mis. budi@simrs.local"
+                    autoComplete="off"
+                    className={inputClass(!!errors.email)}
+                  />
+                </Field>
+
+                {/* Role */}
+                <Field label="Role" required error={errors.roleIds} hint={!errors.roleIds ? 'Bisa pilih lebih dari satu' : undefined}>
+                  {rolesQuery.isLoading ? (
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-500">
+                      Memuat role…
+                    </div>
+                  ) : roles.length === 0 ? (
+                    <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700">
+                      Belum ada role di sistem.
+                    </div>
+                  ) : (
+                    <div className="max-h-40 space-y-1 overflow-y-auto rounded-lg border border-slate-200 p-2">
+                      {roles.map((role) => (
+                        <label
+                          key={role.id}
+                          className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-slate-700 transition hover:bg-slate-50"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={form.roleIds.includes(role.id)}
+                            onChange={() => toggleRole(role.id)}
+                            className="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-2 focus:ring-primary-500"
+                          />
+                          <span className="font-medium">{role.name}</span>
+                          <span className="text-xs text-slate-400">({role.code})</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </Field>
+
+                {/* Branch */}
+                <Field label="Cabang" error={errors.branchId} hint={!errors.branchId ? 'Opsional' : undefined}>
+                  {branchesQuery.isLoading ? (
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-500">
+                      Memuat cabang…
+                    </div>
+                  ) : (
+                    <select
+                      value={form.branchId}
+                      onChange={(e) => setForm({ ...form, branchId: e.target.value })}
+                      className={inputClass(!!errors.branchId)}
+                    >
+                      <option value="">— Pilih cabang —</option>
+                      {branches.map((b) => (
+                        <option key={b.id} value={b.id}>
+                          {b.name} ({b.code})
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </Field>
+
+                <Field
+                  label="Password"
+                  required={!isEdit}
+                  error={errors.password}
+                  hint={isEdit ? 'Kosongkan kalau tidak ingin mengubah password' : 'Minimal 8 karakter'}
+                >
+                  <input
+                    type="password"
+                    value={form.password}
+                    onChange={(e) => setForm({ ...form, password: e.target.value })}
+                    placeholder={isEdit ? '••••••••' : 'Masukkan password'}
+                    autoComplete="new-password"
+                    className={inputClass(!!errors.password)}
+                  />
+                </Field>
+
+                <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={form.isActive}
+                    onChange={(e) => setForm({ ...form, isActive: e.target.checked })}
+                    className="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-2 focus:ring-primary-500"
+                  />
+                  User aktif (bisa login)
+                </label>
+              </div>
+            )}
+
+            {/* ============ TAB: MODULE ACCESS ============ */}
+            {activeTab === 'access' && (
+              <ModuleAccessEditor
+                userId={user?.id}
+                onChange={setModules}
+                disabled={isSubmitting}
               />
-              User aktif (bisa login)
-            </label>
+            )}
           </div>
 
-          <div className="mt-6 flex justify-end gap-2">
-            <Button type="button" variant="secondary" onClick={onClose} disabled={isSubmitting}>
+          {/* Footer */}
+          <div className="flex justify-end gap-2 border-t border-slate-100 px-6 py-4">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={onClose}
+              disabled={isSubmitting}
+            >
               Batal
             </Button>
             <Button type="submit" loading={isSubmitting} disabled={isSubmitting}>
@@ -297,14 +356,37 @@ export function UserFormModal({
   );
 }
 
-// ---------- helpers ----------
+// ============================================================
+// SUB COMPONENTS
+// ============================================================
 
-function inputClass(hasError: boolean) {
-  return cn(
-    'block w-full rounded-lg border px-3 py-2 text-sm text-slate-900 placeholder-slate-400 outline-none transition',
-    hasError
-      ? 'border-red-300 focus:border-red-500 focus:ring-2 focus:ring-red-500/20'
-      : 'border-slate-300 focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20',
+interface TabButtonProps {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+  hasError?: boolean;
+}
+
+function TabButton({ active, onClick, children, hasError }: TabButtonProps) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        'relative px-4 py-3 text-sm font-medium transition',
+        active
+          ? 'text-primary-600'
+          : 'text-slate-500 hover:text-slate-700',
+      )}
+    >
+      {children}
+      {hasError && (
+        <span className="ml-1.5 inline-block h-1.5 w-1.5 rounded-full bg-red-500" />
+      )}
+      {active && (
+        <span className="absolute inset-x-0 -bottom-px h-0.5 bg-primary-600" />
+      )}
+    </button>
   );
 }
 
@@ -330,5 +412,14 @@ function Field({ label, required, error, hint, children }: FieldProps) {
         <p className="mt-1 text-xs text-slate-400">{hint}</p>
       ) : null}
     </div>
+  );
+}
+
+function inputClass(hasError: boolean) {
+  return cn(
+    'block w-full rounded-lg border px-3 py-2 text-sm text-slate-900 placeholder-slate-400 outline-none transition',
+    hasError
+      ? 'border-red-300 focus:border-red-500 focus:ring-2 focus:ring-red-500/20'
+      : 'border-slate-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20',
   );
 }

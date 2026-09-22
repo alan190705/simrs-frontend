@@ -6,14 +6,17 @@ import {
   createUser,
   deleteUser,
   fetchBranches,
+  fetchEffectiveAccess,
   fetchRoles,
   fetchUserById,
   fetchUsers,
+  setUserModules,
   updateUser,
 } from './users.api';
 import type {
   ChangePasswordInput,
   CreateUserInput,
+  ModuleInput,
   QueryUserParams,
   UpdateUserInput,
 } from './users.types';
@@ -28,6 +31,8 @@ export const userKeys = {
   list: (params: QueryUserParams) => [...userKeys.lists(), params] as const,
   details: () => [...userKeys.all, 'detail'] as const,
   detail: (id: string) => [...userKeys.details(), id] as const,
+  effectiveAccess: (id: string) =>
+    [...userKeys.detail(id), 'effective-access'] as const,
 };
 
 export const masterKeys = {
@@ -56,6 +61,18 @@ export function useUser(id: string | undefined) {
   });
 }
 
+/**
+ * Ambil akses efektif user — untuk tab Module Access.
+ */
+export function useEffectiveAccess(id: string | undefined) {
+  return useQuery({
+    queryKey: userKeys.effectiveAccess(id ?? ''),
+    queryFn: () => fetchEffectiveAccess(id!),
+    enabled: !!id,
+    staleTime: 30_000,
+  });
+}
+
 // ============================================================
 // QUERY HOOKS — MASTER DATA
 // ============================================================
@@ -64,7 +81,7 @@ export function useRoles() {
   return useQuery({
     queryKey: masterKeys.roles,
     queryFn: fetchRoles,
-    staleTime: 5 * 60_000, // cache 5 menit
+    staleTime: 5 * 60_000,
   });
 }
 
@@ -99,6 +116,7 @@ export function useUpdateUser(id: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: userKeys.lists() });
       qc.invalidateQueries({ queryKey: userKeys.detail(id) });
+      qc.invalidateQueries({ queryKey: userKeys.effectiveAccess(id) });
       toast.success('User berhasil diperbarui');
     },
     onError: (err) => toast.error(getErrorMessage(err)),
@@ -121,6 +139,22 @@ export function useChangeUserPassword(id: string) {
   return useMutation({
     mutationFn: (input: ChangePasswordInput) => changeUserPassword(id, input),
     onSuccess: () => toast.success('Password berhasil diubah'),
+    onError: (err) => toast.error(getErrorMessage(err)),
+  });
+}
+
+/**
+ * Set module access user (override).
+ */
+export function useSetUserModules(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (modules: ModuleInput[]) => setUserModules(id, modules),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: userKeys.effectiveAccess(id) });
+      qc.invalidateQueries({ queryKey: userKeys.detail(id) });
+      toast.success('Module access berhasil disimpan');
+    },
     onError: (err) => toast.error(getErrorMessage(err)),
   });
 }

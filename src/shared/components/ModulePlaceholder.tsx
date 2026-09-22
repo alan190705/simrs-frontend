@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
-import { EmptyState } from '@/components/feedback/EmptyState';
-import { Card } from '@/components/ui/Card';
+import { EmptyState } from '@/shared/components/feedback';
+import { Card } from '@/shared/components/ui';
 import type { NavItem } from '@/app/navigation';
 
 export function ModulePlaceholder({ item }: { item: NavItem }) {

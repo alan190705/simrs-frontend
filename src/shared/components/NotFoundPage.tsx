@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { EmptyState } from '@/components/feedback/EmptyState';
+import { EmptyState } from '@/shared/components/feedback';
 
 export function NotFoundPage() {
   return (

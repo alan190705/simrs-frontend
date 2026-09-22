@@ -40,7 +40,7 @@ export interface User {
 }
 
 // ============================================================
-// MASTER DATA (untuk dropdown)
+// MASTER DATA
 // ============================================================
 
 export interface Role {
@@ -58,7 +58,48 @@ export interface Branch {
 }
 
 // ============================================================
-// TIPE INPUT
+// MODULE ACCESS
+// ============================================================
+
+/** State permission per modul — hasil /users/:id/effective-access */
+export interface PermissionState {
+  permissionId: string;
+  code: string;
+  name: string;
+  fromRole: boolean;
+  override: 'grant' | 'deny' | null;
+  effective: boolean;
+}
+
+/** State modul lengkap */
+export interface ModuleState {
+  moduleId: string;
+  moduleCode: string;
+  moduleName: string;
+  moduleGroup: string | null;
+  moduleIcon: string | null;
+  moduleOrder: number;
+  permissions: PermissionState[];
+  hasAccess: boolean;
+  overridden: boolean;
+}
+
+/** Response /users/:id/effective-access */
+export interface EffectiveAccess {
+  userId: string;
+  roles: string[];
+  isSuperAdmin: boolean;
+  modules: ModuleState[];
+}
+
+/** Input untuk set module access */
+export interface ModuleInput {
+  moduleCode: string;
+  permissions: string[];
+}
+
+// ============================================================
+// TIPE INPUT USER
 // ============================================================
 
 export interface UserRoleInput {
@@ -79,6 +120,7 @@ export interface CreateUserInput {
   isActive?: boolean;
   roles?: UserRoleInput[];
   branches?: UserBranchInput[];
+  modules?: ModuleInput[];
 }
 
 export interface UpdateUserInput {
@@ -88,6 +130,7 @@ export interface UpdateUserInput {
   isActive?: boolean;
   roles?: UserRoleInput[];
   branches?: UserBranchInput[];
+  modules?: ModuleInput[];
 }
 
 export interface ChangePasswordInput {
@@ -95,7 +138,7 @@ export interface ChangePasswordInput {
 }
 
 // ============================================================
-// TIPE QUERY & PAGINATION
+// TIPE QUERY
 // ============================================================
 
 export interface QueryUserParams {
