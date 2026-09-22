@@ -1,21 +1,32 @@
-import { Navigate, createBrowserRouter } from 'react-router-dom';
+import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { MainLayout } from '@/layouts/MainLayout';
-import { LoginPage } from '@/modules/auth/LoginPage';
-import { DashboardPage } from '@/modules/dashboard/DashboardPage';
-import { ModulePlaceholder } from '@/modules/shared/ModulePlaceholder';
-import { NotFoundPage } from '@/modules/shared/NotFoundPage';
-import { NAV_ITEMS } from './navigation';
+import { RequireAuth } from '@/modules/auth';
+import { LoginPage } from '@/modules/auth';
+import { DashboardPage } from '@/modules/dashboard';
+import { UsersPage } from '@/modules/users';
+import { NotFoundPage } from '@/shared/components';
 
-// Tahap 2: bungkus route MainLayout dengan <RequireAuth> (redirect ke /login jika belum login).
 export const router = createBrowserRouter([
-  { path: '/login', element: <LoginPage /> },
   {
-    element: <MainLayout />,
+    path: '/login',
+    element: <LoginPage />,
+  },
+  {
+    path: '/',
+    element: (
+      <RequireAuth>
+        <MainLayout />
+      </RequireAuth>
+    ),
     children: [
-      { path: '/', element: <Navigate to="/dashboard" replace /> },
-      { path: '/dashboard', element: <DashboardPage /> },
-      ...NAV_ITEMS.filter((i) => !i.ready).map((i) => ({ path: i.path, element: <ModulePlaceholder item={i} /> })),
-      { path: '*', element: <NotFoundPage /> },
+      { index: true, element: <Navigate to="/dashboard" replace /> },
+      { path: 'dashboard', element: <DashboardPage /> },
+      { path: 'users', element: <UsersPage /> },
+      // Modul berikut tinggal ditambah di sini
     ],
+  },
+  {
+    path: '*',
+    element: <NotFoundPage />,
   },
 ]);

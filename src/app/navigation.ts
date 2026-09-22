@@ -1,11 +1,28 @@
-import { ClipboardPlus, FileText, FlaskConical, LayoutDashboard, Pill, Receipt, ScanLine, Settings, Users } from 'lucide-react';
+import {
+  ClipboardPlus,
+  FileText,
+  FlaskConical,
+  LayoutDashboard,
+  Pill,
+  Receipt,
+  ScanLine,
+  Settings,
+  Shield,
+  Users,
+} from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
-export interface NavItem { path: string; label: string; icon: LucideIcon; ready: boolean; phase?: string }
+export interface NavItem {
+  path: string;
+  label: string;
+  icon: LucideIcon;
+  ready: boolean;
+  phase?: string;
+}
 
-// Satu sumber untuk sidebar dan router. Tahap 2: tambahkan `permission` untuk memfilter menu.
 export const NAV_ITEMS: NavItem[] = [
   { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, ready: true },
+  { path: '/users', label: 'Manajemen User', icon: Shield, ready: true },
   { path: '/patients', label: 'Pasien', icon: Users, ready: false, phase: 'Tahap 4' },
   { path: '/registration', label: 'Pendaftaran', icon: ClipboardPlus, ready: false, phase: 'Tahap 5' },
   { path: '/medical-record', label: 'Rekam Medis', icon: FileText, ready: false, phase: 'Tahap 6' },
